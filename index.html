@@ -6,6 +6,13 @@
 
 <style type="text/css">
 
+body {
+    text-align: center;
+}
+
+table {
+    margin: auto;
+}
 </style>
 <script type="text/javascript" src="NamesList.js"></script>
 <script>
@@ -17,29 +24,50 @@ CHAR_DESCS = [];
 
 cur_n = null;
 cur_descs = [];
-for(var jL of LS){
+for(var j=0;j<LS.length;j++){
+        jL = LS[j];
+
         if(jL[0]=='\t'){
-                cur_descs.push(jL.slice(1))
-                if(jL[1]=='='){
-                        CHAR_DESCS.push([cur_n,jL.slice(3)])
-                }
+            var jL_r = jL;
+            var m = jL.match('[0-9A-F]{4,}');
+            if(m){
+                jL_r = jL.replace(m[0],'[ <b>'+char_from_hex(m[0])+'</b> ]');
+            }            
+            cur_descs.push(jL_r.slice(1))
+            if(jL[1]=='='){
+                    CHAR_DESCS.push([cur_n,jL.slice(3)])
+            } else if (jL[1]=='x'){
+                // some handy links to another chars
+            }
         }else if(jL[0]==';'){
                 // comment
         }else{
                 if(cur_n){
                         CHARS[cur_n]=cur_descs;
                 }
+                cur_n_hex = jL.split('\t')[0];
+                cur_n = char_from_hex(cur_n_hex)
+
+                if(cur_n == char_from_hex(cur_n_hex.slice(1))){
+                    // some issue with big numbers
+                    cur_n=null;
+                }
+
                 cur_descs = [ jL.split('\t')[1] ];
-                cur_n = jL.split('\t')[0];
-                cur_n = parseInt(cur_n, 16);
-                cur_n = String.fromCharCode(cur_n);
 
-                CHAR_DESCS.push([cur_n, cur_descs[0]]);
+                if(cur_n){
+                    CHAR_DESCS.push([cur_n, cur_descs[0]]);
+                }
         }
-
 }
-CHARS[cur_n]=cur_descs;
 
+if(cur_n){
+    CHARS[cur_n]=cur_descs;
+}
+
+function char_from_hex(hex){
+    return String.fromCharCode(parseInt(hex, 16));
+}
 function Trie() {
         this.D = {};
 }
@@ -171,10 +199,10 @@ function drawRes(res){
        var tr = document .createElement('tr')
 
        var td1 = document.createElement('td');
-       td1.innerHTML = r;
+       td1.innerHTML = '<b>'+escapeHtml(r)+'</b>';
 
        var td2 = document.createElement('td');
-       td2.innerHTML = CHARS[r].join('<br/>');
+       td2.innerHTML = CHARS[r]? CHARS[r].join('<br/>') : '';
 
        tr.appendChild(td1);
        tr.appendChild(td2);
@@ -187,6 +215,16 @@ function drawRes(res){
     _('container').appendChild(table);
 
 }
+
+function escapeHtml(unsafe)
+{
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+ }
 
 </script>	
 </head>

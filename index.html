@@ -1,0 +1,198 @@
+<html>
+<head>
+        <meta charset="utf-8" />
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <title>unicode search</title>
+
+<style type="text/css">
+
+</style>
+<script type="text/javascript" src="NamesList.js"></script>
+<script>
+
+LS = S.split('\n')
+
+CHARS = {};
+CHAR_DESCS = [];
+
+cur_n = null;
+cur_descs = [];
+for(var jL of LS){
+        if(jL[0]=='\t'){
+                cur_descs.push(jL.slice(1))
+                if(jL[1]=='='){
+                        CHAR_DESCS.push([cur_n,jL.slice(3)])
+                }
+        }else if(jL[0]==';'){
+                // comment
+        }else{
+                if(cur_n){
+                        CHARS[cur_n]=cur_descs;
+                }
+                cur_descs = [ jL.split('\t')[1] ];
+                cur_n = jL.split('\t')[0];
+                cur_n = parseInt(cur_n, 16);
+                cur_n = String.fromCharCode(cur_n);
+
+                CHAR_DESCS.push([cur_n, cur_descs[0]]);
+        }
+
+}
+CHARS[cur_n]=cur_descs;
+
+function Trie() {
+        this.D = {};
+}
+
+Trie.prototype.insert = function(word, data){
+    var node = this.D;
+    for(var j=0; j<word.length; j++) {
+        var c=word[j];
+
+        if (!node[c]) {
+                node[c] = {};
+
+        }
+        node = node[c];
+    }
+    if(!node['data']){
+        node['data'] = {};
+    }
+    node['data'][data]=1;
+}
+
+Trie.prototype.insert_all_subwords = function(word, data){
+    for(var j=0; j<word.length; j++) {
+        this.insert(word.slice(j).toLowerCase(), data);
+    }
+}
+
+Trie.prototype.get = function(word, limit){
+    var node = this.D;
+    for(var j=0; j<word.length; j++) {
+        var c=word[j];
+        if(!node[c]){
+            return [];
+        }
+        node = node[c];
+    }
+
+    return get_from_node(node, limit);
+}
+
+function limit_reached(R, limit){
+    return Object.keys(R).length >= limit;
+}
+
+function _append_dict_keys(d1,d2){
+    for(var jd in d2){
+        d1[jd] = 1;
+    }
+    return d1;
+}
+
+function get_from_node(node, limit, R){
+    R = R ? R : {}
+    if(node['data']){
+        _append_dict_keys(R, node['data']);
+    }
+    if(limit_reached(R, limit)){
+        return R;
+    }
+    for(var c in node){
+        if(c.length==1){
+            _append_dict_keys(R, get_from_node(node[c]));
+            if(limit_reached(R, limit)){
+                return R;
+            }
+        }
+    }
+    return R;
+}
+
+
+
+function send_post_request(url, payload, onload, onerror=_=>null, responseType='json'){
+    send_request(url, onload, onerror, responseType, 'POST', payload);
+}
+
+function send_request(url, onload, onerror=_=>null, responseType='json', method='GET', payload=null){
+    if (onerror==null){
+        onerror = onload;
+    }
+    var request = new XMLHttpRequest();
+    request.responseType = responseType;
+    request.open(method, url);
+
+    request.onload = function() { onload(request); };
+    request.onerror = function() { onerror(request); };
+    (payload===null) ? request.send() : request.send(urlEncodeObject(payload));
+}
+
+
+T = new Trie();
+
+function onBodyLoad(){
+    CHAR_DESCS.forEach(
+        function(CD){ 
+            if(CD[1]){
+                T.insert_all_subwords(CD[1],CD[0]);
+            }
+        }
+    )
+	console.log('aa');
+}
+
+function _(id){
+    return document.getElementById(id);
+}
+function val(id){
+    return _(id).value;
+}
+
+function getQ(){
+    return val('q')
+}
+
+_Res = {};
+
+function onQInput(){
+    var q = getQ();
+    _Res = T.get(q, 10);
+    drawRes(_Res);
+}
+
+function drawRes(res){
+    _('container').innerHTML = "";
+
+    var table = document.createElement('table')
+    var j=0;
+    for(var r in res){
+       var tr = document .createElement('tr')
+
+       var td1 = document.createElement('td');
+       td1.innerHTML = r;
+
+       var td2 = document.createElement('td');
+       td2.innerHTML = CHARS[r].join('<br/>');
+
+       tr.appendChild(td1);
+       tr.appendChild(td2);
+       table.appendChild(tr);
+       j=j+1;
+       if(j>100){
+        break;
+       }
+    }
+    _('container').appendChild(table);
+
+}
+
+</script>	
+</head>
+<body onload="onBodyLoad();">
+    <input id="q" oninput="onQInput();">
+    <div id="container">
+    </div>
+</body>
+</html>
